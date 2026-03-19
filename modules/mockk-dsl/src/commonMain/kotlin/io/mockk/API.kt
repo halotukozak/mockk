@@ -3002,34 +3002,57 @@ typealias awaits = Awaits
  *
  * Allows to specify function result
  */
+/**
+ * Common interface for stub scopes, enabling delegation in [MockKContextStubScope].
+ */
+interface MockKStubbing<T, B> {
+    infix fun answers(answer: Answer<T>): MockKAdditionalAnswerScope<T, B>
+
+    infix fun returns(returnValue: T): MockKAdditionalAnswerScope<T, B>
+
+    infix fun returnsMany(values: List<T>): MockKAdditionalAnswerScope<T, B>
+
+    fun returnsMany(vararg values: T): MockKAdditionalAnswerScope<T, B>
+
+    infix fun returnsArgument(n: Int): MockKAdditionalAnswerScope<T, B>
+
+    infix fun throws(ex: Throwable): MockKAdditionalAnswerScope<T, B>
+
+    infix fun throwsMany(exList: List<Throwable>): MockKAdditionalAnswerScope<T, B>
+
+    infix fun answers(answer: MockKAnswerScope<T, B>.(Call) -> T): MockKAdditionalAnswerScope<T, B>
+
+    infix fun coAnswers(answer: suspend MockKAnswerScope<T, B>.(Call) -> T): MockKAdditionalAnswerScope<T, B>
+}
+
 class MockKStubScope<T, B>(
     private val answerOpportunity: AnswerOpportunity<T>,
     private val callRecorder: CallRecorder,
     private val lambda: CapturingSlot<Function<*>>,
-) {
-    infix fun answers(answer: Answer<T>): MockKAdditionalAnswerScope<T, B> {
+) : MockKStubbing<T, B> {
+    override infix fun answers(answer: Answer<T>): MockKAdditionalAnswerScope<T, B> {
         answerOpportunity.provideAnswer(answer)
         return MockKAdditionalAnswerScope(answerOpportunity, callRecorder, lambda)
     }
 
-    infix fun returns(returnValue: T) = answers(ConstantAnswer(returnValue))
+    override infix fun returns(returnValue: T) = answers(ConstantAnswer(returnValue))
 
-    infix fun returnsMany(values: List<T>) = answers(ManyAnswersAnswer(values.allConst()))
+    override infix fun returnsMany(values: List<T>) = answers(ManyAnswersAnswer(values.allConst()))
 
-    fun returnsMany(vararg values: T) = returnsMany(values.toList())
+    override fun returnsMany(vararg values: T) = returnsMany(values.toList())
 
     /**
      * Returns the nth argument of what has been called.
      */
     @Suppress("UNCHECKED_CAST")
-    infix fun returnsArgument(n: Int): MockKAdditionalAnswerScope<T, B> = this answers { invocation.args[n] as T }
+    override infix fun returnsArgument(n: Int): MockKAdditionalAnswerScope<T, B> = this answers { invocation.args[n] as T }
 
-    infix fun throws(ex: Throwable) = answers(ThrowingAnswer(ex))
+    override infix fun throws(ex: Throwable) = answers(ThrowingAnswer(ex))
 
-    infix fun throwsMany(exList: List<Throwable>): MockKAdditionalAnswerScope<T, B> =
+    override infix fun throwsMany(exList: List<Throwable>): MockKAdditionalAnswerScope<T, B> =
         this answers (ManyAnswersAnswer(exList.map { ThrowingAnswer(it) }))
 
-    infix fun answers(answer: MockKAnswerScope<T, B>.(Call) -> T) =
+    override infix fun answers(answer: MockKAnswerScope<T, B>.(Call) -> T) =
         answers(FunctionAnswer { MockKAnswerScope<T, B>(lambda, it).answer(it) })
 
     @Suppress("UNUSED_PARAMETER")
@@ -3038,9 +3061,25 @@ class MockKStubScope<T, B>(
     @Suppress("UNUSED_PARAMETER")
     infix fun <K : Any> nullablePropertyType(cls: KClass<K>) = MockKStubScope<T, K?>(answerOpportunity, callRecorder, lambda)
 
-    infix fun coAnswers(answer: suspend MockKAnswerScope<T, B>.(Call) -> T) =
+    override infix fun coAnswers(answer: suspend MockKAnswerScope<T, B>.(Call) -> T) =
         answers(CoFunctionAnswer { MockKAnswerScope<T, B>(lambda, it).answer(it) })
 }
+
+/**
+ * A [MockKStubbing] implementation that tracks the context parameter type [C].
+ *
+ * Returned by `everyContext` and `coEveryContext`. Delegates all standard
+ * stubbing methods to the wrapped [MockKStubScope] and enables
+ * `answersWithContext` / `coAnswersWithContext` extensions for typed access
+ * to the context argument.
+ *
+ * @param T the return type of the stubbed call
+ * @param B the backing-field type (same as [T] for regular calls)
+ * @param C the context parameter type
+ */
+class MockKContextStubScope<T, B, C>(
+    delegate: MockKStubScope<T, B>,
+) : MockKStubbing<T, B> by delegate
 
 /**
  * Part of DSL. Answer placeholder for Unit returning functions.
@@ -3049,10 +3088,22 @@ class MockKStubScope<T, B>(
 infix fun MockKStubScope<Unit, Unit>.just(runs: Runs) = answers(ConstantAnswer(Unit))
 
 /**
+ * Part of DSL. Answer placeholder for Unit returning functions.
+ */
+@Suppress("UNUSED_PARAMETER")
+infix fun MockKStubbing<Unit, Unit>.just(runs: Runs) = answers(ConstantAnswer(Unit))
+
+/**
  * Part of DSL. Answer placeholder for never returning suspend functions.
  */
 @Suppress("UNUSED_PARAMETER")
 infix fun <T, B> MockKStubScope<T, B>.just(awaits: Awaits) = coAnswers { awaitCancellation() }
+
+/**
+ * Part of DSL. Answer placeholder for never returning suspend functions.
+ */
+@Suppress("UNUSED_PARAMETER")
+infix fun <T, B> MockKStubbing<T, B>.just(awaits: Awaits) = coAnswers { awaitCancellation() }
 
 /**
  * Scope to chain additional answers to reply. Part of DSL

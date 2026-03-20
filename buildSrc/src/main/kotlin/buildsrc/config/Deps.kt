@@ -6,7 +6,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 object Deps {
     object Versions {
         val jvmTarget = JavaVersion.VERSION_1_8
-        val kotlinCompatibility = KotlinVersion.KOTLIN_1_8
+        val kotlinCompatibility = KotlinVersion.KOTLIN_2_2
 
         const val ANDROID_SDK = 36
         const val ANDROID_MIN_SDK = 21

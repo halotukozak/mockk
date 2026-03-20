@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
-
 plugins {
     buildsrc.convention.`kotlin-multiplatform`
 
@@ -13,17 +11,7 @@ val mavenDescription: String by extra("${project.description}")
 
 kotlin {
     jvm {
-        testRuns["test"].executionTask.configure {
-            useJUnitPlatform()
-        }
-        compilations["main"].compilerOptions.configure {
-            languageVersion = KotlinVersion.KOTLIN_2_2
-            apiVersion = KotlinVersion.KOTLIN_2_2
-            freeCompilerArgs.add("-Xcontext-parameters")
-        }
-        compilations["test"].compilerOptions.configure {
-            languageVersion = KotlinVersion.KOTLIN_2_2
-            apiVersion = KotlinVersion.KOTLIN_2_2
+        compilerOptions {
             freeCompilerArgs.add("-Xcontext-parameters")
         }
     }
